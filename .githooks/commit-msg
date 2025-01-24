@@ -1,0 +1,47 @@
+#!/bin/sh
+# Detect Windows and re-execute with PowerShell
+if [ -n "$OS" ] && [ "$OS" = "Windows_NT" ]; then
+    exec powershell -NoProfile -ExecutionPolicy Bypass -Command "& { $(cat "$0" | sed '1,/^# POWERSHELL$/d') }" "$@"
+    exit 1
+fi
+
+# -------------------- BASH LOGIC --------------------
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Skip merge commits
+if echo "$COMMIT_MSG" | grep -qE "^Merge branch "; then
+  exit 0
+fi
+
+# Jira ticket regex (e.g., ABC-123)
+JIRA_PATTERN='[A-Z]+-[0-9]+'
+
+if ! echo "$COMMIT_MSG" | grep -Eq "$JIRA_PATTERN"; then
+  echo "ERROR: Commit message must contain a Jira ticket number (e.g., ABC-123)." >&2
+  echo "Example: 'ABC-123: Fix the issue'" >&2
+  exit 1
+fi
+
+exit 0
+
+# POWERSHELL
+# -------------------- POWERSHELL LOGIC --------------------
+$COMMIT_MSG_FILE = $args[0]
+$COMMIT_MSG = Get-Content -Path $COMMIT_MSG_FILE -Raw
+
+# Skip merge commits
+if ($COMMIT_MSG -match "^Merge branch ") {
+    exit 0
+}
+
+# Jira ticket regex (e.g., ABC-123)
+$JIRA_PATTERN = '[A-Z]+-[0-9]+'
+
+if (-not ($COMMIT_MSG -match $JIRA_PATTERN)) {
+    Write-Host "ERROR: Commit message must contain a Jira ticket number (e.g., ABC-123)." -ForegroundColor Red
+    Write-Host "Example: 'ABC-123: Fix the issue'" -ForegroundColor Red
+    exit 1
+}
+
+exit 0
