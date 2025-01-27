@@ -1,13 +1,13 @@
-name: Generate Release Notes
+name: Generate and Publish Release Notes
 
 on:
   workflow_dispatch:
     inputs:
       start_tag:
-        description: 'Starting tag (e.g., v1.0.0)'
+        description: 'Start Tag (e.g., v1.0.0)'
         required: true
       end_tag:
-        description: 'Ending tag (e.g., v1.0.6)'
+        description: 'End Tag (e.g., v1.0.6)'
         required: true
 
 jobs:
@@ -15,20 +15,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Generate Release Notes
-      uses: bobheadxi/generate-release-notes@v2
+      uses: gableroux/github-release-notes@v0.1.2
       with:
-        config: .github/release-notes.toml
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.event.inputs.end_tag }}
+        previous_tag: ${{ github.event.inputs.start_tag }}
         output: release-notes.md
-        fromTag: ${{ github.event.inputs.start_tag }}
-        toTag: ${{ github.event.inputs.end_tag }}
 
     - name: Display Release Notes
       run: |
-        echo "Generated release notes between ${{ github.event.inputs.start_tag }} and ${{ github.event.inputs.end_tag }}"
+        echo "Release Notes between ${{ github.event.inputs.start_tag }} and ${{ github.event.inputs.end_tag }}"
         cat release-notes.md
+
