@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       start_tag:
-        description: 'Start Tag (e.g., v1.0.0)'
+        description: 'Starting tag (e.g., v1.0.0)'
         required: true
       end_tag:
-        description: 'End Tag (e.g., v1.0.6)'
+        description: 'Ending tag (e.g., v1.0.6)'
         required: true
 
 jobs:
@@ -15,32 +15,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Generate Release Notes
-      id: generate-notes
-      uses: mikepenz/release-changelog-builder-action@v3
+      uses: bobheadxi/generate-release-notes@v2
       with:
-        configuration: |
-          base: ${{ github.workspace }}/.github/changelog-config.json
-        token: ${{ secrets.GITHUB_TOKEN }}
-        startTag: ${{ github.event.inputs.start_tag }}
-        endTag: ${{ github.event.inputs.end_tag }}
+        config: .github/release-notes.toml
+        output: release-notes.md
+        fromTag: ${{ github.event.inputs.start_tag }}
+        toTag: ${{ github.event.inputs.end_tag }}
 
-    - name: Create Release Notes File
+    - name: Display Release Notes
       run: |
-        echo "Release Notes between ${{ github.event.inputs.start_tag }} and ${{ github.event.inputs.end_tag }}"
-        echo "${{ steps.generate-notes.outputs.changelog }}"
-        echo "${{ steps.generate-notes.outputs.changelog }}" > release-notes.md
-
-    - name: Show File Contents
-      run: cat release-notes.md
-
-    - name: Upload Release Notes
-      uses: actions/upload-artifact@v3
-      with:
-        name: release-notes
-        path: release-notes.md
+        echo "Generated release notes between ${{ github.event.inputs.start_tag }} and ${{ github.event.inputs.end_tag }}"
+        cat release-notes.md
