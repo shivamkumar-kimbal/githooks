@@ -1,4 +1,4 @@
-name: Generate and Publish Release Notes
+name: Generate Release Notes and Update Confluence
 
 on:
   workflow_dispatch:
@@ -11,8 +11,11 @@ on:
         required: true
 
 jobs:
-  generate-release-notes:
+  process-release-notes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
     - name: Checkout repository
@@ -20,16 +23,18 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Generate Release Notes
-      uses: gableroux/github-release-notes@v0.1.2
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.event.inputs.end_tag }}
-        previous_tag: ${{ github.event.inputs.start_tag }}
-        output: release-notes.md
-
-    - name: Display Release Notes
+    - name: Generate raw release notes
+      id: generate-notes
       run: |
-        echo "Release Notes between ${{ github.event.inputs.start_tag }} and ${{ github.event.inputs.end_tag }}"
-        cat release-notes.md
+        git log --pretty=format:"- %s (%h) [View](https://github.com/${{ github.repository }}/commit/%H)" ${{ github.event.inputs.start_tag }}..${{ github.event.inputs.end_tag }} > raw-notes.md
+        echo "notes_path=raw-notes.md" >> $GITHUB_ENV
 
+    - name: Update CHANGELOG.md
+      uses: stefanzweifel/changelog-updater-action@v1
+      with:
+        latest-version: ${{ github.event.inputs.end_tag }}
+        release-notes: |
+          ## What's Changed
+          $(cat raw-notes.md)
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.inputs.start_tag }}...${{ github.event.inputs.end_tag }}
