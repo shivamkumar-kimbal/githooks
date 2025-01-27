@@ -26,15 +26,9 @@ jobs:
     - name: Generate raw release notes
       id: generate-notes
       run: |
-        git log --pretty=format:"- %s (%h) [View](https://github.com/${{ github.repository }}/commit/%H)" ${{ github.event.inputs.start_tag }}..${{ github.event.inputs.end_tag }} > raw-notes.md
+        git log --pretty=format:"- %s (%h) View" ${{ github.event.inputs.start_tag }}..${{ github.event.inputs.end_tag }} > raw-notes.md
         echo "notes_path=raw-notes.md" >> $GITHUB_ENV
 
-    - name: Update CHANGELOG.md
-      uses: stefanzweifel/changelog-updater-action@v1
-      with:
-        latest-version: ${{ github.event.inputs.end_tag }}
-        release-notes: |
-          ## What's Changed
-          $(cat raw-notes.md)
-          
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.inputs.start_tag }}...${{ github.event.inputs.end_tag }}
+    - name: Echo raw release notes
+      run: |
+        cat ${{ env.notes_path }}
