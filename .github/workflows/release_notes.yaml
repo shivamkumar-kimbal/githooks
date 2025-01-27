@@ -1,4 +1,4 @@
-name: Generate and Publish Release Notes
+name: Generate Release Notes
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ on:
         required: true
 
 jobs:
-  generate-and-publish-release-notes:
+  generate-release-notes:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,29 +30,17 @@ jobs:
         startTag: ${{ github.event.inputs.start_tag }}
         endTag: ${{ github.event.inputs.end_tag }}
 
-    - name: Update Confluence Page
+    - name: Create Release Notes File
       run: |
-        # Convert markdown to Confluence Storage Format
-        CONTENT=$(echo '${{ steps.generate-notes.outputs.changelog }}' | pandoc -f markdown -t html)
+        echo "Release Notes between ${{ github.event.inputs.start_tag }} and ${{ github.event.inputs.end_tag }}"
+        echo "${{ steps.generate-notes.outputs.changelog }}"
+        echo "${{ steps.generate-notes.outputs.changelog }}" > release-notes.md
 
-        # Create/Update Confluence page using REST API
-        curl -u "${{ secrets.CONFLUENCE_EMAIL }}:${{ secrets.CONFLUENCE_API_TOKEN }}" \
-          -X PUT \
-          -H 'Content-Type: application/json' \
-          --data-raw '{
-            "id": "${{ secrets.CONFLUENCE_PAGE_ID }}",
-            "type": "page",
-            "title": "Release Notes ${{ github.event.inputs.start_tag }} to ${{ github.event.inputs.end_tag }}",
-            "space": {"key": "${{ secrets.CONFLUENCE_SPACE_KEY }}"},
-            "body": {
-              "storage": {
-                "value": "<p>Release notes between ${{ github.event.inputs.start_tag }} and ${{ github.event.inputs.end_tag }}</p>$CONTENT",
-                "representation": "storage"
-              }
-            },
-            "version": {"number": $(($(curl -s -u "${{ secrets.CONFLUENCE_EMAIL }}:${{ secrets.CONFLUENCE_API_TOKEN }}" \
-              "https://${{ secrets.CONFLUENCE_BASE_URL }}/rest/api/content/${{ secrets.CONFLUENCE_PAGE_ID }}" | jq .version.number) + 1))}
-          }' \
-          "https://${{ secrets.CONFLUENCE_BASE_URL }}/rest/api/content/${{ secrets.CONFLUENCE_PAGE_ID }}"
-      env:
-        CONFLUENCE_BASE_URL: ${{ secrets.CONFLUENCE_BASE_URL }}
+    - name: Show File Contents
+      run: cat release-notes.md
+
+    - name: Upload Release Notes
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-notes
+        path: release-notes.md
