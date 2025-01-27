@@ -29,24 +29,30 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         startTag: ${{ github.event.inputs.start_tag }}
         endTag: ${{ github.event.inputs.end_tag }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Update Confluence Page
-      uses: knotel/confluence-content-update-action@v1
-      with:
-        base-url: ${{ secrets.CONFLUENCE_BASE_URL }}
-        user: ${{ secrets.CONFLUENCE_USERNAME }}
-        api-token: ${{ secrets.CONFLUENCE_API_TOKEN }}
-        page-id: ${{ secrets.CONFLUENCE_PAGE_ID }}
-        space-key: ${{ secrets.CONFLUENCE_SPACE_KEY }}
-        parent-page-id: ${{ secrets.CONFLUENCE_PARENT_PAGE_ID }}
-        title: "Release Notes ${{ github.event.inputs.start_tag }} to ${{ github.event.inputs.end_tag }}"
-        content: |
-          <ac:structured-macro ac:name="markdown">
-            <ac:plain-text-body><![CDATA[
-            # Release Notes from ${{ github.event.inputs.start_tag }} to ${{ github.event.inputs.end_tag }}
-            
-            ${{ steps.generate-notes.outputs.changelog }}
-            ]]></ac:plain-text-body>
-          </ac:structured-macro>
+      run: |
+        # Convert markdown to Confluence Storage Format
+        CONTENT=$(echo '${{ steps.generate-notes.outputs.changelog }}' | pandoc -f markdown -t html)
+
+        # Create/Update Confluence page using REST API
+        curl -u "${{ secrets.CONFLUENCE_EMAIL }}:${{ secrets.CONFLUENCE_API_TOKEN }}" \
+          -X PUT \
+          -H 'Content-Type: application/json' \
+          --data-raw '{
+            "id": "${{ secrets.CONFLUENCE_PAGE_ID }}",
+            "type": "page",
+            "title": "Release Notes ${{ github.event.inputs.start_tag }} to ${{ github.event.inputs.end_tag }}",
+            "space": {"key": "${{ secrets.CONFLUENCE_SPACE_KEY }}"},
+            "body": {
+              "storage": {
+                "value": "<p>Release notes between ${{ github.event.inputs.start_tag }} and ${{ github.event.inputs.end_tag }}</p>$CONTENT",
+                "representation": "storage"
+              }
+            },
+            "version": {"number": $(($(curl -s -u "${{ secrets.CONFLUENCE_EMAIL }}:${{ secrets.CONFLUENCE_API_TOKEN }}" \
+              "https://${{ secrets.CONFLUENCE_BASE_URL }}/rest/api/content/${{ secrets.CONFLUENCE_PAGE_ID }}" | jq .version.number) + 1))}
+          }' \
+          "https://${{ secrets.CONFLUENCE_BASE_URL }}/rest/api/content/${{ secrets.CONFLUENCE_PAGE_ID }}"
+      env:
+        CONFLUENCE_BASE_URL: ${{ secrets.CONFLUENCE_BASE_URL }}
